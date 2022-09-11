@@ -17,7 +17,8 @@ type LatencyQueue struct {
 func New(process func([]Entry) error) *LatencyQueue {
    lq := LatencyQueue{
       deadlineChan: make(chan time.Duration),
-      process: process,
+      process:      process,
+      deadline:     time.Unix(1 << 62, 0),
    }
    go lq.waiter()
 
@@ -53,8 +54,10 @@ func (lq *LatencyQueue) Enqueue(entry Entry, maxLatency time.Duration) {
 
    lq.pending = append(lq.pending, entry)
 
-   if lq.deadline.IsZero() || maxLatency < time.Until(lq.deadline) {
-     lq.deadline = time.Now().Add(maxLatency)
-     lq.deadlineChan <- maxLatency
+   if maxLatency >= time.Until(lq.deadline) {
+      return
    }
+
+   lq.deadline = time.Now().Add(maxLatency)
+   lq.deadlineChan <- maxLatency
 }
