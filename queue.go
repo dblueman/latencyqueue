@@ -24,6 +24,16 @@ func New(process func([]Entry) error) *LatencyQueue {
    return &lq
 }
 
+func (lq *LatencyQueue) dequeue() {
+   lq.lock.Lock()
+   defer lq.lock.Unlock()
+
+   err := lq.process(lq.pending)
+   if err == nil {
+      lq.pending = []Entry{}
+   }
+}
+
 func (lq *LatencyQueue) waiter() {
    var left time.Duration
 
@@ -32,12 +42,7 @@ func (lq *LatencyQueue) waiter() {
       case left = <-lq.deadlineChan:
          continue
       case <-time.After(left):
-         lq.lock.Lock()
-         err := lq.process(lq.pending)
-         if err == nil {
-            lq.pending = []Entry{}
-         }
-         lq.lock.Unlock()
+         lq.dequeue()
       }
    }
 }
