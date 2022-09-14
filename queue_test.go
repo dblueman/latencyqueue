@@ -1,10 +1,16 @@
-package main
+package latencyqueue
 
 import (
    "fmt"
    "testing"
    "time"
 )
+
+type Entry struct {
+   when time.Time
+   host string
+   msg  string
+}
 
 var (
    start time.Time

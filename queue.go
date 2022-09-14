@@ -1,21 +1,21 @@
-package main
+package latencyqueue
 
 import (
    "sync"
    "time"
 )
 
-type LatencyQueue struct {
+type LatencyQueue[T any] struct {
    deadlineChan chan time.Duration
-   process      func([]Entry) error
+   process      func([]T) error
 
    lock         sync.Mutex
-   pending      []Entry
+   pending      []T
    deadline     time.Time
 }
 
-func New(process func([]Entry) error) *LatencyQueue {
-   lq := LatencyQueue{
+func New[T any](process func([]T) error) *LatencyQueue[T] {
+   lq := LatencyQueue[T]{
       deadlineChan: make(chan time.Duration),
       process:      process,
       deadline:     time.Unix(1 << 62, 0),
@@ -25,17 +25,17 @@ func New(process func([]Entry) error) *LatencyQueue {
    return &lq
 }
 
-func (lq *LatencyQueue) dequeue() {
+func (lq *LatencyQueue[T]) dequeue() {
    lq.lock.Lock()
    defer lq.lock.Unlock()
 
    err := lq.process(lq.pending)
    if err == nil {
-      lq.pending = []Entry{}
+      lq.pending = lq.pending[:0]
    }
 }
 
-func (lq *LatencyQueue) waiter() {
+func (lq *LatencyQueue[T]) waiter() {
    var left time.Duration
 
    for {
@@ -48,7 +48,7 @@ func (lq *LatencyQueue) waiter() {
    }
 }
 
-func (lq *LatencyQueue) Enqueue(entry Entry, maxLatency time.Duration) {
+func (lq *LatencyQueue[T]) Enqueue(entry T, maxLatency time.Duration) {
    lq.lock.Lock()
    defer lq.lock.Unlock()
 
